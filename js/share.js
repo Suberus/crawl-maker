@@ -108,7 +108,10 @@
       const cb = '__isgd_' + Math.random().toString(36).slice(2);
       const script = document.createElement('script');
       const timer = setTimeout(() => done(new Error('The shortener did not respond.')), 10000);
+      let settled = false;
       function done(err, val) {
+        if (settled) return;
+        settled = true;
         clearTimeout(timer);
         delete window[cb];
         script.remove();
@@ -119,6 +122,9 @@
         else done(new Error((res && res.errormessage) || 'The shortener rejected this link.'));
       };
       script.onerror = () => done(new Error('Could not reach the shortener.'));
+      // A JSONP reply runs before onload fires. If onload comes first, is.gd sent
+      // plain text instead (e.g. "Error, database insert failed" during outages).
+      script.onload = () => done(new Error('The shortener (is.gd) is having problems right now. Try again later, or share the full link. It works the same.'));
       script.src = 'https://is.gd/create.php?format=json&callback=' + cb + '&url=' + encodeURIComponent(longUrl);
       document.head.appendChild(script);
     });
