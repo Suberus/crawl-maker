@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#000000">
+  <title>Galactic Crawl Maker</title>
+  <meta name="description" content="Write your own epic space-opera opening crawl and share it with a link.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=News+Cycle:wght@400;700&family=Archivo+Black&display=swap">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <canvas id="stars" aria-hidden="true"></canvas>
+
+  <!-- ===================== EDITOR ===================== -->
+  <main id="editor" class="editor" hidden>
+    <header class="editor-head">
+      <h1>Galactic Crawl Maker</h1>
+      <p>Fill in the template, generate your crawl, and share the link.</p>
+    </header>
+
+    <form id="crawl-form" autocomplete="off" novalidate>
+      <p id="form-error" class="form-error" role="alert" hidden></p>
+
+      <label class="field">
+        <span>Opening line <small>(the blue text)</small></span>
+        <textarea name="intro" rows="2" maxlength="200" class="intro-input"></textarea>
+      </label>
+
+      <label class="field">
+        <span>Logo text <small>(press Enter for a second line)</small></span>
+        <textarea name="logo" rows="2" maxlength="60" class="logo-input"></textarea>
+      </label>
+
+      <div class="field-row">
+        <label class="field field-episode">
+          <span>Episode number</span>
+          <input name="episode" type="text" maxlength="20" placeholder="IV">
+        </label>
+        <label class="field field-title">
+          <span>Episode title</span>
+          <input name="title" type="text" maxlength="80" placeholder="A NEW ADVENTURE">
+        </label>
+      </div>
+
+      <label class="field">
+        <span>Crawl text <small>(leave a blank line between paragraphs)</small></span>
+        <textarea name="body" rows="10" maxlength="3000" class="crawl-input"></textarea>
+      </label>
+
+      <fieldset class="field music">
+        <legend>Music</legend>
+        <div class="music-choices">
+          <label><input type="radio" name="musicType" value="url" checked> Theme (audio link)</label>
+          <label><input type="radio" name="musicType" value="youtube"> YouTube video</label>
+          <label><input type="radio" name="musicType" value="file"> My own audio file</label>
+          <label><input type="radio" name="musicType" value="none"> No music</label>
+        </div>
+
+        <div class="music-panel" data-music="url">
+          <label class="field">
+            <span>Audio link (MP3)</span>
+            <input name="audioUrl" type="url" inputmode="url" placeholder="https://…/theme.mp3">
+          </label>
+          <p class="hint">A direct link to an audio file online. The link is saved in your share link, so everyone hears the same music.</p>
+        </div>
+
+        <div class="music-panel" data-music="youtube" hidden>
+          <label class="field">
+            <span>YouTube link or video ID</span>
+            <input name="yt" type="url" inputmode="url" placeholder="https://www.youtube.com/watch?v=...">
+          </label>
+          <p class="hint">Paste a link to the theme music on YouTube. The video ID is saved in your share link.</p>
+        </div>
+
+        <div class="music-panel" data-music="file" hidden>
+          <label class="field">
+            <span>Audio file (MP3, M4A, OGG…)</span>
+            <input name="audioFile" type="file" accept="audio/*">
+          </label>
+          <p class="hint">The file only plays on this device and isn't included in the share link.</p>
+        </div>
+
+        <label class="field field-small music-start">
+          <span>Start the music at (seconds)</span>
+          <input name="musicStart" type="number" min="0" max="36000" step="0.1" value="0" inputmode="decimal">
+        </label>
+        <p class="hint music-start">The music begins when the logo appears. If the track has silence before the first note, skip it here.</p>
+      </fieldset>
+
+      <div class="actions">
+        <button type="submit" class="btn btn-primary">Generate crawl</button>
+        <button type="button" class="btn btn-ghost" id="reset-sample">Reset to sample</button>
+      </div>
+    </form>
+
+    <footer class="editor-foot">
+      <p>A fan-made tribute. Not affiliated with Lucasfilm or Disney.</p>
+    </footer>
+  </main>
+
+  <!-- ===================== PLAYER ===================== -->
+  <section id="player" class="player" hidden aria-label="Crawl player">
+    <div class="stage" id="stage">
+      <p class="intro" id="intro-text"></p>
+      <div class="logo-wrap"><h2 class="logo" id="logo-text"></h2></div>
+      <div class="crawl-viewport" id="crawl-viewport">
+        <div class="crawl-plane" id="crawl-plane">
+          <div class="crawl-text" id="crawl-text">
+            <p class="crawl-episode" id="crawl-episode"></p>
+            <h3 class="crawl-title" id="crawl-title"></h3>
+            <div class="crawl-body" id="crawl-body"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="overlay" id="play-overlay">
+      <button type="button" class="play-big" id="play-big" aria-label="Play crawl">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
+      </button>
+      <p class="overlay-title" id="overlay-title"></p>
+      <p class="overlay-sub">Tap to play · best with sound on</p>
+    </div>
+
+    <div class="overlay end-overlay" id="end-overlay" hidden>
+      <div class="end-actions">
+        <button type="button" class="btn btn-primary" data-action="restart">Watch again</button>
+        <button type="button" class="btn btn-ghost" data-action="share">Share</button>
+        <button type="button" class="btn btn-ghost" data-action="edit">Make your own</button>
+      </div>
+    </div>
+
+    <div class="controls" id="controls">
+      <button type="button" class="ctl" data-action="toggle" aria-label="Pause" title="Pause / play (Space)">
+        <svg class="i-pause" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 5h4v14H6zM14 5h4v14h-4z"/></svg>
+        <svg class="i-play" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
+      </button>
+      <button type="button" class="ctl" data-action="restart" aria-label="Restart" title="Restart (R)">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5V1L7 6l5 5V7a6 6 0 1 1-6 6H4a8 8 0 1 0 8-8z"/></svg>
+      </button>
+      <button type="button" class="ctl ctl-text" data-action="speed" aria-label="Playback speed" title="Speed">1×</button>
+      <button type="button" class="ctl" data-action="mute" aria-label="Mute" title="Mute (M)">
+        <svg class="i-vol" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3A4.5 4.5 0 0 0 14 8v8a4.5 4.5 0 0 0 2.5-4zM14 3.2v2.1a7 7 0 0 1 0 13.4v2.1a9 9 0 0 0 0-17.6z"/></svg>
+        <svg class="i-muted" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 9v6h4l5 5V4L7 9H3zm18.6 0.4-1.4-1.4L17.5 10.7 14.8 8l-1.4 1.4 2.7 2.7-2.7 2.7 1.4 1.4 2.7-2.7 2.7 2.7 1.4-1.4-2.7-2.7z"/></svg>
+      </button>
+      <span class="ctl-spacer"></span>
+      <button type="button" class="ctl" data-action="share" aria-label="Share" title="Share">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 16a3 3 0 0 0-2.4 1.2l-6.7-3.4a3 3 0 0 0 0-1.6l6.7-3.4A3 3 0 1 0 15 7l-6.7 3.4a3 3 0 1 0 0 3.2L15 17a3 3 0 1 0 3-1z"/></svg>
+      </button>
+      <button type="button" class="ctl" data-action="fullscreen" aria-label="Fullscreen" title="Fullscreen (F)">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5h5v2H7v3H5V5zm9 0h5v5h-2V7h-3V5zM5 14h2v3h3v2H5v-5zm12 3v-3h2v5h-5v-2h3z"/></svg>
+      </button>
+      <button type="button" class="ctl" data-action="edit" aria-label="Edit crawl" title="Edit">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 17.2V21h3.8L17.8 9.9l-3.7-3.7L3 17.2zm17.7-10.1a1 1 0 0 0 0-1.4l-2.4-2.4a1 1 0 0 0-1.4 0l-1.8 1.8 3.7 3.7 1.9-1.7z"/></svg>
+      </button>
+    </div>
+
+    <div class="yt-dock" id="yt-dock" hidden>
+      <button type="button" class="yt-toggle" id="yt-toggle" aria-expanded="true">Music ▾</button>
+      <div class="yt-frame"><div id="yt-player"></div></div>
+    </div>
+  </section>
+
+  <!-- ===================== SHARE DIALOG ===================== -->
+  <div class="share-sheet" id="share-sheet" hidden role="dialog" aria-modal="true" aria-labelledby="share-heading">
+    <div class="share-card">
+      <h2 id="share-heading">Share your crawl</h2>
+      <p class="hint">Anyone who opens this link sees your crawl. All the text is stored in the link itself.</p>
+      <div class="share-row">
+        <input id="share-url" type="text" readonly aria-label="Share link">
+        <button type="button" class="btn btn-primary" id="share-copy">Copy</button>
+      </div>
+      <p class="share-meta" id="share-meta"></p>
+      <div class="share-actions">
+        <button type="button" class="btn btn-ghost" id="share-shorten">Make it shorter</button>
+        <button type="button" class="btn btn-ghost" id="share-native" hidden>Share…</button>
+        <button type="button" class="btn btn-ghost" id="share-close">Close</button>
+      </div>
+      <p class="share-status" id="share-status" role="status"></p>
+    </div>
+  </div>
+
+  <audio id="local-audio" preload="auto"></audio>
+
+  <script src="js/share.js"></script>
+  <script src="js/music.js"></script>
+  <script src="js/crawl.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
